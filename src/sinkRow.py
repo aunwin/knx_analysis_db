@@ -1,4 +1,4 @@
-class DestDump:
+class SinkRow:
     sequence_number = None
     timestamp = None
     source_addr = None

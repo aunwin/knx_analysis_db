@@ -1,4 +1,4 @@
-class SrcLog:
+class SrcRow:
     id = None
     time = None
     date = None
