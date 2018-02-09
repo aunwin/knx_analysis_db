@@ -1,4 +1,4 @@
-class SrcLog:
+class DestDump:
     sequence_number = None
     timestamp = None
     source_addr = None
