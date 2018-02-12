@@ -34,8 +34,6 @@ def translate_to_sink_row(src_row):
 
 def write_row_with_cursor(row, cursor):
     # todo configurations shall be external - needs improvement
-    #sql = """INSERT INTO knx_dump (source_addr) VALUES('%s')""" % row.source_addr
-
     # print(row.sequence_number,
     #                row.timestamp,
     #                row.source_addr,
@@ -56,48 +54,27 @@ def write_row_with_cursor(row, cursor):
     #                row.is_manipulated,
     #                row.attack_type_id)
 
-    # sql = """INSERT INTO knx_dump (sequence_number,
-    #                                timestamp,
-    #                                source_addr,
-    #                                destination_addr,
-    #                                apci,
-    #                                priority,
-    #                                flag_communication,
-    #                                flag_read,
-    #                                flag_write,
-    #                                flag_transmit,
-    #                                flag_refresh,
-    #                                flag_read_at_init,
-    #                                repeated,
-    #                                hop_count,
-    #                                payload,
-    #                                payload_length,
-    #                                raw_package,
-    #                                is_manipulated,
-    #                                attack_type_id)
-    #           VALUES('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s')""" \
-    #             % (row.sequence_number,
-    #                row.timestamp,
-    #                row.source_addr,
-    #                row.destination_addr,
-    #                row.apci,
-    #                row.priority,
-    #                row.flag_communication,
-    #                row.flag_read,
-    #                row.flag_write,
-    #                row.flag_transmit,
-    #                row.flag_refresh,
-    #                row.flag_read_at_init,
-    #                row.repeated,
-    #                row.hop_count,
-    #                row.payload,
-    #                row.payload_length,
-    #                row.raw_package,
-    #                row.is_manipulated,
-    #                row.attack_type_id)
-#    sql = """INSERT INTO knx_dump (source_addr, hop_count) VALUES('%s,%s')""" % (row.source_addr, row.hop_count)
-    sql = """INSERT INTO knx_dump (source_addr) VALUES('%s')""" % (row.source_addr)
 
+    sql = """INSERT INTO knx_dump VALUES (NULL,               #sequence_number
+                                          CURRENT_TIMESTAMP,  #timestamp
+                                          "0.0.0",            #source_addr
+                                          "1/1/1",            #destination_addr
+                                          1,                  #apci
+                                          "prio",             #priority
+                                          1,                  #flag_communication
+                                          1,                  #flag_read
+                                          1,                  #flag_write
+                                          1,                  #flag_transmit
+                                          1,                  #flag_refresh
+                                          1,                  #flag_read_at_init
+                                          1,                  #repeated
+                                          8,                  #hop_count
+                                          "payload",          #payload
+                                          1,                  #payload_length
+                                          "raw",              #raw_package
+                                          1,                  #is_manipulated
+                                          NULL                #attack_type
+                                          );"""
 
     cursor.execute(sql)
     return
