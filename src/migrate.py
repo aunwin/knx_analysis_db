@@ -4,18 +4,19 @@ import pymysql
 import srcRow
 import sinkRow
 import databaseconfig as db_cfg
+from datetime import datetime
 
 
 def translate_to_sink_row(src_row):
     sink_row = sinkRow.SinkRow()
 
-    sink_row.sequence_number = 0
-    sink_row.timestamp = 0
-    sink_row.source_addr = src_row.source_address
-    sink_row.destination_addr = src_row.destination_address
+    sink_row.sequence_number = "NULL"                                   # auto-increment
+    sink_row.timestamp = str(src_row.date) + " " + str(src_row.time)    # constructing datetime document from strings
+    sink_row.source_addr = src_row.source_address                       # unchainged
+    sink_row.destination_addr = src_row.destination_address             # unchainged
     sink_row.apci = 0
-    sink_row.priority = "prio"
-    sink_row.flag_communication = None
+    sink_row.priority = "prior."
+    sink_row.flag_communication = 0
     sink_row.flag_read = 0
     sink_row.flag_write = 0
     sink_row.flag_transmit = 0
@@ -23,10 +24,10 @@ def translate_to_sink_row(src_row):
     sink_row.flag_read_at_init = 0
     sink_row.repeated = 0
     sink_row.hop_count = 8
-    sink_row.payload = 0
+    sink_row.payload = src_row.cemi #todo is payload supposed to be cemi?
     sink_row.payload_length = 0
     sink_row.raw_package = "raw_package"
-    sink_row.is_manipulated = 0
+    sink_row.is_manipulated = 0                                         # 0 = FALSE
     sink_row.attack_type_id = 0
 
     return sink_row
@@ -73,10 +74,35 @@ def write_row_with_cursor(row, cursor):
                                           1,                  #payload_length
                                           "raw",              #raw_package
                                           1,                  #is_manipulated
-                                          NULL                #attack_type
+                                          NULL                #attack_type_id
                                           );"""
 
-    cursor.execute(sql)
+    print(row.sequence_number)
+
+    sql_param = "%s,'%s','%s','%s',%s,'%s',%s,%s,%s,%s,%s,%s,%s,%s,'%s',%s,'%s',%s,%s" % (row.sequence_number,
+                                                                              row.timestamp,
+                                                                              row.source_addr,
+                                                                              row.destination_addr,
+                                                                              row.apci,
+                                                                              row.priority,
+                                                                              row.flag_communication,
+                                                                              row.flag_read,
+                                                                              row.flag_write,
+                                                                              row.flag_transmit,
+                                                                              row.flag_refresh,
+                                                                              row.flag_read_at_init,
+                                                                              row.repeated,
+                                                                              row.hop_count,
+                                                                              row.payload,
+                                                                              row.payload_length,
+                                                                              row.raw_package,
+                                                                              row.is_manipulated,
+                                                                              row.attack_type_id)
+    sql_cmd = "INSERT INTO knx_dump VALUES (%s);" % sql_param
+    print(sql_cmd)
+
+    cursor.execute(sql_cmd)
+    #cursor.execute(sql)  #dummy test command with constant values that work without warnings
     return
 
 def migrate_one_record(row):
@@ -138,7 +164,7 @@ print("DB version: %s " % db_version)
 #for response in src_cursor:
 #    print(response)
 
-migrate_records(0, 10, src_cursor, sink_cursor)
+migrate_records(0, 2, src_cursor, sink_cursor)
 
 # Clean up
 src_cursor.close()
