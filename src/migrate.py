@@ -4,12 +4,12 @@ import pymysql
 import srcRow
 import sinkRow
 import databaseconfig as db_cfg
-from datetime import datetime
 
 
 def translate_to_sink_row(src_row):
     sink_row = sinkRow.SinkRow()
 
+    # todo delete hardcoded dummy sink_row
     sink_row.sequence_number = "NULL"                                   # auto-increment
     sink_row.timestamp = str(src_row.date) + " " + str(src_row.time)    # constructing datetime document from strings
     sink_row.source_addr = src_row.source_address                       # unchainged
@@ -56,53 +56,53 @@ def write_row_with_cursor(row, cursor):
     #                row.attack_type_id)
 
 
-    sql = """INSERT INTO knx_dump VALUES (NULL,               #sequence_number
-                                          CURRENT_TIMESTAMP,  #timestamp
-                                          "0.0.0",            #source_addr
-                                          "1/1/1",            #destination_addr
-                                          1,                  #apci
-                                          "prio",             #priority
-                                          1,                  #flag_communication
-                                          1,                  #flag_read
-                                          1,                  #flag_write
-                                          1,                  #flag_transmit
-                                          1,                  #flag_refresh
-                                          1,                  #flag_read_at_init
-                                          1,                  #repeated
-                                          8,                  #hop_count
-                                          "payload",          #payload
-                                          1,                  #payload_length
-                                          "raw",              #raw_package
-                                          1,                  #is_manipulated
-                                          NULL                #attack_type_id
-                                          );"""
+    # sql_static_example = """INSERT INTO knx_dump VALUES (NULL,               #sequence_number
+    #                                       CURRENT_TIMESTAMP,  #timestamp
+    #                                       "0.0.0",            #source_addr
+    #                                       "1/1/1",            #destination_addr
+    #                                       1,                  #apci
+    #                                       "prio",             #priority
+    #                                       1,                  #flag_communication
+    #                                       1,                  #flag_read
+    #                                       1,                  #flag_write
+    #                                       1,                  #flag_transmit
+    #                                       1,                  #flag_refresh
+    #                                       1,                  #flag_read_at_init
+    #                                       1,                  #repeated
+    #                                       8,                  #hop_count
+    #                                       "payload",          #payload
+    #                                       1,                  #payload_length
+    #                                       "raw",              #raw_package
+    #                                       1,                  #is_manipulated
+    #                                       NULL                #attack_type_id
+    #                                       );"""
 
-    print(row.sequence_number)
 
-    sql_param = "%s,'%s','%s','%s',%s,'%s',%s,%s,%s,%s,%s,%s,%s,%s,'%s',%s,'%s',%s,%s" % (row.sequence_number,
-                                                                              row.timestamp,
-                                                                              row.source_addr,
-                                                                              row.destination_addr,
-                                                                              row.apci,
-                                                                              row.priority,
-                                                                              row.flag_communication,
-                                                                              row.flag_read,
-                                                                              row.flag_write,
-                                                                              row.flag_transmit,
-                                                                              row.flag_refresh,
-                                                                              row.flag_read_at_init,
-                                                                              row.repeated,
-                                                                              row.hop_count,
-                                                                              row.payload,
-                                                                              row.payload_length,
-                                                                              row.raw_package,
-                                                                              row.is_manipulated,
-                                                                              row.attack_type_id)
+    sql_param = '{row.sequence_number}, ' \
+                '"{row.timestamp}", ' \
+                '"{row.source_addr}", ' \
+                '"{row.destination_addr}",' \
+                '{row.apci}, ' \
+                '"{row.priority}",' \
+                '{row.flag_communication},' \
+                '{row.flag_read},' \
+                '{row.flag_write},' \
+                '{row.flag_transmit},' \
+                '{row.flag_refresh},' \
+                '{row.flag_read_at_init},' \
+                '{row.repeated},' \
+                '{row.hop_count},' \
+                '"{row.payload}",' \
+                '{row.payload_length},' \
+                '"{row.raw_package}",' \
+                '{row.is_manipulated},' \
+                '{row.attack_type_id}'\
+                .format(row=row)
+
     sql_cmd = "INSERT INTO knx_dump VALUES (%s);" % sql_param
-    print(sql_cmd)
+    print('sql_cmd to be executed: \n%s' % sql_cmd)
 
     cursor.execute(sql_cmd)
-    #cursor.execute(sql)  #dummy test command with constant values that work without warnings
     return
 
 def migrate_one_record(row):
@@ -129,12 +129,19 @@ def migrate_one_record(row):
 
 def migrate_records(offset, row_cnt, read_cursor, write_cursor):
     # todo configurations shall be external - needs improvement
-    read_cursor.execute("""SELECT * FROM knxlog LIMIT %s,%s""" % (offset, row_cnt))
+
+    sql_select_all = """SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi 
+                        from knxlog.knxlog 
+                        LIMIT %s,%s""" % (offset, row_cnt)
+    read_cursor.execute(sql_select_all)
 
     for row in read_cursor:
         migrate_one_record(row)
 
     return
+
+
+
 
 src_connection = pymysql.connect(host=db_cfg.src_db['host'],
                                  user=db_cfg.src_db['user'],
@@ -158,11 +165,6 @@ src_cursor.execute("SELECT VERSION()")
 db_version = src_cursor.fetchone()
 print("DB version: %s " % db_version)
 
-# Example read from DB
-#sql = """SELECT * FROM knxlog.knxlog LIMIT 1000"""
-#src_cursor.execute(sql)
-#for response in src_cursor:
-#    print(response)
 
 migrate_records(0, 2, src_cursor, sink_cursor)
 
