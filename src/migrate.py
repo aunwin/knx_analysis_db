@@ -29,9 +29,8 @@ def translate_to_sink_row(src_row):
     sink_row.timestamp = str(src_row.date) + " " + str(src_row.time)    # constructing datetime document from strings
     sink_row.source_addr = src_row.source_address                       # unchainged
     sink_row.destination_addr = src_row.destination_address             # unchainged
-    sink_row.apci = int(src_telegram.apci)                              # todo db requires int but string would be fare more readable
-    #print(sink_row.apci)                                               # todo since 'A_GROUP_VALUE_WRITE' is more helpful than '128'
-    sink_row.priority = src_telegram.priority                           # TelegramPriority from BaosKnxParser
+    sink_row.apci = src_telegram.apci                                   # from BaosKnxParser
+    sink_row.priority = src_telegram.priority                           # from BaosKnxParser
     # todo #Kommunikationsobjektflags
     sink_row.flag_communication = 0
     sink_row.flag_read = 0
@@ -39,13 +38,14 @@ def translate_to_sink_row(src_row):
     sink_row.flag_transmit = 0
     sink_row.flag_refresh = 0
     sink_row.flag_read_at_init = 0
-    sink_row.repeated = src_telegram.repeat                             # from Parser
-    sink_row.hop_count = src_telegram.hop_count                         # from Parser
-    sink_row.payload = src_row.cemi                                     #todo is payload supposed to be cemi? No! cemi = raw package | sink_row.payload should be renamed to sink_row.apdu
-    sink_row.payload_length = src_telegram.payload_length               # from Parser
-    sink_row.raw_package = src_row.cemi                                 #todo rename raw_packege into cemi
+    # end todo hardcoded dummy sink_row
+    sink_row.repeated = src_telegram.repeat                             # from BaosKnxParser
+    sink_row.hop_count = src_telegram.hop_count                         # from BaosKnxParser
+    sink_row.apdu = src_telegram.payload                                # from BaosKnxParser
+    sink_row.payload_length = src_telegram.payload_length               # from BaosKnxParser
+    sink_row.cemi = src_row.cemi                                        # unchainged
     sink_row.is_manipulated = False                                     # 0 = FALSE
-    sink_row.attack_type_id = 0                                         # todo to be determined
+    sink_row.attack_type_id = 'NULL'                                    # parsed telegrams are not considered an attack
 
     return sink_row
 
@@ -66,9 +66,9 @@ def write_row_with_cursor(row, cursor):
     #                row.flag_read_at_init,
     #                row.repeated,
     #                row.hop_count,
-    #                row.payload,
+    #                row.apdu,
     #                row.payload_length,
-    #                row.raw_package,
+    #                row.cemi,
     #                row.is_manipulated,
     #                row.attack_type_id)
 
@@ -87,9 +87,9 @@ def write_row_with_cursor(row, cursor):
     #                                       1,                  #flag_read_at_init
     #                                       1,                  #repeated
     #                                       8,                  #hop_count
-    #                                       "payload",          #payload
+    #                                       "apdu",          #apdu
     #                                       1,                  #payload_length
-    #                                       "raw",              #raw_package
+    #                                       "raw",              #cemi
     #                                       1,                  #is_manipulated
     #                                       NULL                #attack_type_id
     #                                       );"""
@@ -98,21 +98,21 @@ def write_row_with_cursor(row, cursor):
     sql_param = '{row.sequence_number}, ' \
                 '"{row.timestamp}", ' \
                 '"{row.source_addr}", ' \
-                '"{row.destination_addr}",' \
-                '{row.apci}, ' \
-                '"{row.priority}",' \
-                '{row.flag_communication},' \
-                '{row.flag_read},' \
-                '{row.flag_write},' \
-                '{row.flag_transmit},' \
-                '{row.flag_refresh},' \
-                '{row.flag_read_at_init},' \
-                '{row.repeated},' \
-                '{row.hop_count},' \
-                '"{row.payload}",' \
-                '{row.payload_length},' \
-                '"{row.raw_package}",' \
-                '{row.is_manipulated},' \
+                '"{row.destination_addr}", ' \
+                '"{row.apci}", ' \
+                '"{row.priority}", ' \
+                '{row.flag_communication}, ' \
+                '{row.flag_read}, ' \
+                '{row.flag_write}, ' \
+                '{row.flag_transmit}, ' \
+                '{row.flag_refresh}, ' \
+                '{row.flag_read_at_init}, ' \
+                '{row.repeated}, ' \
+                '{row.hop_count}, ' \
+                '"{row.apdu}", ' \
+                '{row.payload_length}, ' \
+                '"{row.cemi}", ' \
+                '{row.is_manipulated}, ' \
                 '{row.attack_type_id}'\
                 .format(row=row)
 

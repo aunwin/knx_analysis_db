@@ -13,9 +13,9 @@ class SinkRow:
     flag_read_at_init = None
     repeated = None
     hop_count = None
-    payload = None
+    apdu = None
     payload_length = None
-    raw_package = None
+    cemi = None
     is_manipulated = None
     attack_type_id = None
 
@@ -33,9 +33,9 @@ class SinkRow:
 #             'flag_read_at_init': None,
 #             'repeated': None,
 #             'hop_count': None,
-#             'payload': None,
+#             'apdu': None,
 #             'payload_length': None,
-#             'raw_package': None,
+#             'cemi': None,
 #             'is_manipulated': None,
 #             'attack_type_id': None,
 #             }

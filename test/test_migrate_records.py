@@ -34,9 +34,9 @@ class TestSink_row(TestCase):
         self.assertEqual(sink.flag_read_at_init, None)
         self.assertEqual(sink.repeated, None)
         self.assertEqual(sink.hop_count, None)
-        self.assertEqual(sink.payload, None)
+        self.assertEqual(sink.apdu, None)
         self.assertEqual(sink.payload_length, None)
-        self.assertEqual(sink.raw_package, None)
+        self.assertEqual(sink.cemi, None)
         self.assertEqual(sink.is_manipulated, None)
         self.assertEqual(sink.attack_type_id, None)
 
