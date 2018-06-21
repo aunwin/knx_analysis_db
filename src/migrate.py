@@ -7,10 +7,10 @@ import databaseconfig as db_cfg
 
 import baos_knx_parser as knx
 
+
 def translate_to_sink_row(src_row):
     sink_row = sinkRow.SinkRow()
 
-    #print(src_row.cemi)
     src_telegram = knx.parse_knx_telegram(bytes.fromhex(src_row.cemi))
     print(type(src_telegram)) #todo why is it a KnxStandardTelegram when I expect it to be an Extended Telegram
     print(src_telegram)
@@ -21,8 +21,7 @@ def translate_to_sink_row(src_row):
     print('apci: %s' % src_telegram.apci)
     print('tpci: %s' % src_telegram.tpci)
     print('packet_number: %s' % src_telegram.packet_number)
-    #print('Debug print from translate_to_sink_row( %s )' % src_row)
-
+    # print('Debug print from translate_to_sink_row( %s )' % src_row)
 
     # todo delete hardcoded dummy sink_row
     sink_row.sequence_number = "NULL"                                   # auto-increment
@@ -31,14 +30,6 @@ def translate_to_sink_row(src_row):
     sink_row.destination_addr = src_row.destination_address             # unchainged
     sink_row.apci = src_telegram.apci                                   # from BaosKnxParser
     sink_row.priority = src_telegram.priority                           # from BaosKnxParser
-    # todo #Kommunikationsobjektflags
-    sink_row.flag_communication = 0
-    sink_row.flag_read = 0
-    sink_row.flag_write = 0
-    sink_row.flag_transmit = 0
-    sink_row.flag_refresh = 0
-    sink_row.flag_read_at_init = 0
-    # end todo hardcoded dummy sink_row
     sink_row.repeated = src_telegram.repeat                             # from BaosKnxParser
     sink_row.hop_count = src_telegram.hop_count                         # from BaosKnxParser
     sink_row.apdu = src_telegram.payload                                # from BaosKnxParser
@@ -72,41 +63,13 @@ def write_row_with_cursor(row, cursor):
     #                row.is_manipulated,
     #                row.attack_type_id)
 
-
-    # sql_static_example = """INSERT INTO knx_dump VALUES (NULL,               #sequence_number
-    #                                       CURRENT_TIMESTAMP,  #timestamp
-    #                                       "0.0.0",            #source_addr
-    #                                       "1/1/1",            #destination_addr
-    #                                       1,                  #apci
-    #                                       "prio",             #priority
-    #                                       1,                  #flag_communication
-    #                                       1,                  #flag_read
-    #                                       1,                  #flag_write
-    #                                       1,                  #flag_transmit
-    #                                       1,                  #flag_refresh
-    #                                       1,                  #flag_read_at_init
-    #                                       1,                  #repeated
-    #                                       8,                  #hop_count
-    #                                       "apdu",          #apdu
-    #                                       1,                  #payload_length
-    #                                       "raw",              #cemi
-    #                                       1,                  #is_manipulated
-    #                                       NULL                #attack_type_id
-    #                                       );"""
-
-
+    print(f'{row.sequence_number}, "{row.timestamp}", "{row.source_addr}", "{row.destination_addr}", "{row.apci}", ')
     sql_param = '{row.sequence_number}, ' \
                 '"{row.timestamp}", ' \
                 '"{row.source_addr}", ' \
                 '"{row.destination_addr}", ' \
                 '"{row.apci}", ' \
                 '"{row.priority}", ' \
-                '{row.flag_communication}, ' \
-                '{row.flag_read}, ' \
-                '{row.flag_write}, ' \
-                '{row.flag_transmit}, ' \
-                '{row.flag_refresh}, ' \
-                '{row.flag_read_at_init}, ' \
                 '{row.repeated}, ' \
                 '{row.hop_count}, ' \
                 '"{row.apdu}", ' \

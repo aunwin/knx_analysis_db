@@ -4,5 +4,5 @@ class SrcRow:
     date = None
     source_address = None
     destination_address = None
-    data = None #already contained within cemi / data = last part of cemi
+    data = None
     cemi = None

@@ -26,12 +26,6 @@ class TestSink_row(TestCase):
         self.assertEqual(sink.destination_addr, None)
         self.assertEqual(sink.apci, None)
         self.assertEqual(sink.priority, None)
-        self.assertEqual(sink.flag_communication, None)
-        self.assertEqual(sink.flag_read, None)
-        self.assertEqual(sink.flag_write, None)
-        self.assertEqual(sink.flag_transmit, None)
-        self.assertEqual(sink.flag_refresh, None)
-        self.assertEqual(sink.flag_read_at_init, None)
         self.assertEqual(sink.repeated, None)
         self.assertEqual(sink.hop_count, None)
         self.assertEqual(sink.apdu, None)
@@ -43,7 +37,6 @@ class TestSink_row(TestCase):
 class TestMigrate_records(TestCase):
     def test_migrate_records(self):
         self.assertEqual(2,2)
-        #self.fail()
 
 if __name__ == '__main__':
     unittest.main()
