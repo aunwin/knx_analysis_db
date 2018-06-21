@@ -5,30 +5,47 @@ import srcRow
 import sinkRow
 import databaseconfig as db_cfg
 
+import baos_knx_parser as knx
 
 def translate_to_sink_row(src_row):
     sink_row = sinkRow.SinkRow()
+
+    #print(src_row.cemi)
+    src_telegram = knx.parse_knx_telegram(bytes.fromhex(src_row.cemi))
+    print(type(src_telegram)) #todo why is it a KnxStandardTelegram when I expect it to be an Extended Telegram
+    print(src_telegram)
+
+    print('telegram_type: %s' % src_telegram.telegram_type)
+    print('ack: %s' % src_telegram.ack)
+    print('confirm: %s' % src_telegram.confirm)
+    print('apci: %s' % src_telegram.apci)
+    print('tpci: %s' % src_telegram.tpci)
+    print('packet_number: %s' % src_telegram.packet_number)
+    #print('Debug print from translate_to_sink_row( %s )' % src_row)
+
 
     # todo delete hardcoded dummy sink_row
     sink_row.sequence_number = "NULL"                                   # auto-increment
     sink_row.timestamp = str(src_row.date) + " " + str(src_row.time)    # constructing datetime document from strings
     sink_row.source_addr = src_row.source_address                       # unchainged
     sink_row.destination_addr = src_row.destination_address             # unchainged
-    sink_row.apci = 0
-    sink_row.priority = "prior."
+    sink_row.apci = int(src_telegram.apci)                              # todo db requires int but string would be fare more readable
+    #print(sink_row.apci)                                               # todo since 'A_GROUP_VALUE_WRITE' is more helpful than '128'
+    sink_row.priority = src_telegram.priority                           # TelegramPriority from BaosKnxParser
+    # todo #Kommunikationsobjektflags
     sink_row.flag_communication = 0
     sink_row.flag_read = 0
     sink_row.flag_write = 0
     sink_row.flag_transmit = 0
     sink_row.flag_refresh = 0
     sink_row.flag_read_at_init = 0
-    sink_row.repeated = 0
-    sink_row.hop_count = 8
-    sink_row.payload = src_row.cemi #todo is payload supposed to be cemi?
-    sink_row.payload_length = 0
-    sink_row.raw_package = "raw_package"
-    sink_row.is_manipulated = 0                                         # 0 = FALSE
-    sink_row.attack_type_id = 0
+    sink_row.repeated = src_telegram.repeat                             # from Parser
+    sink_row.hop_count = src_telegram.hop_count                         # from Parser
+    sink_row.payload = src_row.cemi                                     #todo is payload supposed to be cemi? No! cemi = raw package | sink_row.payload should be renamed to sink_row.apdu
+    sink_row.payload_length = src_telegram.payload_length               # from Parser
+    sink_row.raw_package = src_row.cemi                                 #todo rename raw_packege into cemi
+    sink_row.is_manipulated = False                                     # 0 = FALSE
+    sink_row.attack_type_id = 0                                         # todo to be determined
 
     return sink_row
 
@@ -39,7 +56,7 @@ def write_row_with_cursor(row, cursor):
     #                row.timestamp,
     #                row.source_addr,
     #                row.destination_addr,
-    #                row.apci,
+    #                row.apci,q
     #                row.priority,
     #                row.flag_communication,
     #                row.flag_read,
@@ -128,12 +145,12 @@ def migrate_one_record(row):
 
 
 def migrate_records(offset, row_cnt, read_cursor, write_cursor):
-    # todo configurations shall be external - needs improvement
+    # todo configurations should better be external
 
-    sql_select_all = """SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi 
+    sql_select = """SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi 
                         from knxlog.knxlog 
                         LIMIT %s,%s""" % (offset, row_cnt)
-    read_cursor.execute(sql_select_all)
+    read_cursor.execute(sql_select)
 
     for row in read_cursor:
         migrate_one_record(row)
@@ -166,7 +183,7 @@ db_version = src_cursor.fetchone()
 print("DB version: %s " % db_version)
 
 
-migrate_records(0, 2, src_cursor, sink_cursor)
+migrate_records(0, 1, src_cursor, sink_cursor)
 
 # Clean up
 src_cursor.close()
