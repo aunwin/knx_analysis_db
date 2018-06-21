@@ -12,29 +12,18 @@ def translate_to_sink_row(src_row):
     sink_row = sinkRow.SinkRow()
 
     src_telegram = knx.parse_knx_telegram(bytes.fromhex(src_row.cemi))
-    print(type(src_telegram)) #todo why is it a KnxStandardTelegram when I expect it to be an Extended Telegram
-    print(src_telegram)
 
-    print('telegram_type: %s' % src_telegram.telegram_type)
-    print('ack: %s' % src_telegram.ack)
-    print('confirm: %s' % src_telegram.confirm)
-    print('apci: %s' % src_telegram.apci)
-    print('tpci: %s' % src_telegram.tpci)
-    print('packet_number: %s' % src_telegram.packet_number)
-    # print('Debug print from translate_to_sink_row( %s )' % src_row)
-
-    # todo delete hardcoded dummy sink_row
-    sink_row.sequence_number = "NULL"                                   # auto-increment
+    sink_row.sequence_number = 'NULL'                                   # auto-increment
     sink_row.timestamp = str(src_row.date) + " " + str(src_row.time)    # constructing datetime document from strings
-    sink_row.source_addr = src_row.source_address                       # unchainged
-    sink_row.destination_addr = src_row.destination_address             # unchainged
+    sink_row.source_addr = src_row.source_address                       # unchanged
+    sink_row.destination_addr = src_row.destination_address             # unchanged
     sink_row.apci = src_telegram.apci                                   # from BaosKnxParser
     sink_row.priority = src_telegram.priority                           # from BaosKnxParser
     sink_row.repeated = src_telegram.repeat                             # from BaosKnxParser
     sink_row.hop_count = src_telegram.hop_count                         # from BaosKnxParser
     sink_row.apdu = src_telegram.payload                                # from BaosKnxParser
     sink_row.payload_length = src_telegram.payload_length               # from BaosKnxParser
-    sink_row.cemi = src_row.cemi                                        # unchainged
+    sink_row.cemi = src_row.cemi                                        # unchanged
     sink_row.is_manipulated = False                                     # 0 = FALSE
     sink_row.attack_type_id = 'NULL'                                    # parsed telegrams are not considered an attack
 
@@ -42,48 +31,26 @@ def translate_to_sink_row(src_row):
 
 
 def write_row_with_cursor(row, cursor):
-    # todo configurations shall be external - needs improvement
-    # print(row.sequence_number,
-    #                row.timestamp,
-    #                row.source_addr,
-    #                row.destination_addr,
-    #                row.apci,q
-    #                row.priority,
-    #                row.flag_communication,
-    #                row.flag_read,
-    #                row.flag_write,
-    #                row.flag_transmit,
-    #                row.flag_refresh,
-    #                row.flag_read_at_init,
-    #                row.repeated,
-    #                row.hop_count,
-    #                row.apdu,
-    #                row.payload_length,
-    #                row.cemi,
-    #                row.is_manipulated,
-    #                row.attack_type_id)
 
-    print(f'{row.sequence_number}, "{row.timestamp}", "{row.source_addr}", "{row.destination_addr}", "{row.apci}", ')
-    sql_param = '{row.sequence_number}, ' \
-                '"{row.timestamp}", ' \
-                '"{row.source_addr}", ' \
-                '"{row.destination_addr}", ' \
-                '"{row.apci}", ' \
-                '"{row.priority}", ' \
-                '{row.repeated}, ' \
-                '{row.hop_count}, ' \
-                '"{row.apdu}", ' \
-                '{row.payload_length}, ' \
-                '"{row.cemi}", ' \
-                '{row.is_manipulated}, ' \
-                '{row.attack_type_id}'\
-                .format(row=row)
+    sql_param = f'{row.sequence_number}, ' \
+                f'"{row.timestamp}", ' \
+                f'"{row.source_addr}", ' \
+                f'"{row.destination_addr}", ' \
+                f'"{row.apci}", ' \
+                f'"{row.priority}", ' \
+                f'{row.repeated}, ' \
+                f'{row.hop_count}, ' \
+                f'"{row.apdu}", ' \
+                f'{row.payload_length}, ' \
+                f'"{row.cemi}", ' \
+                f'{row.is_manipulated}, ' \
+                f'{row.attack_type_id}'
 
-    sql_cmd = "INSERT INTO knx_dump VALUES (%s);" % sql_param
-    print('sql_cmd to be executed: \n%s' % sql_cmd)
-
+    sql_cmd = f'INSERT INTO knx_dump VALUES ({sql_param});'
+    print(f'sql_cmd to be executed: {sql_cmd}')
     cursor.execute(sql_cmd)
     return
+
 
 def migrate_one_record(row):
     # Fill src-Object
@@ -98,7 +65,6 @@ def migrate_one_record(row):
     src_row.cemi = row[6]
 
     # Fill sink-Object
-    sink_row = sinkRow.SinkRow()
     sink_row = translate_to_sink_row(src_row)
 
     # Write sink-Row
@@ -108,19 +74,15 @@ def migrate_one_record(row):
 
 
 def migrate_records(offset, row_cnt, read_cursor, write_cursor):
-    # todo configurations should better be external
-
-    sql_select = """SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi 
-                        from knxlog.knxlog 
-                        LIMIT %s,%s""" % (offset, row_cnt)
+    sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
+                 f'from knxlog.knxlog ' \
+                 f'LIMIT {offset}, {row_cnt}'
     read_cursor.execute(sql_select)
 
     for row in read_cursor:
         migrate_one_record(row)
 
     return
-
-
 
 
 src_connection = pymysql.connect(host=db_cfg.src_db['host'],
@@ -146,7 +108,7 @@ db_version = src_cursor.fetchone()
 print("DB version: %s " % db_version)
 
 
-migrate_records(0, 1, src_cursor, sink_cursor)
+migrate_records(0, 10, src_cursor, sink_cursor)
 
 # Clean up
 src_cursor.close()
