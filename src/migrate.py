@@ -21,10 +21,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
                      f'from knxlog.knxlog ' \
                      f'LIMIT {limit} OFFSET {offset + counter_migrated_tuples}'
 
-        print(f'sql_select statement to be executed = {sql_select}')
         read_cursor.execute(sql_select)
-
-        print(f'size of read_cursor = {read_cursor.rowcount}')
 
         for row in read_cursor:
             migrate_one_record(row, write_cursor)
@@ -95,7 +92,7 @@ def write_row_with_cursor(row, cursor):
                 f'{row.attack_type_id}'
 
     sql_cmd = f'INSERT INTO knx_dump VALUES ({sql_param});'
-    print(f'sql_cmd to be executed: {sql_cmd}')
+    # print(f'sql_cmd to be executed: {sql_cmd}')
     cursor.execute(sql_cmd)
     return
 
@@ -137,6 +134,6 @@ def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor
 
 
 src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(0, 11, 10, src_crsr, sink_crsr)
+migrate_records(0, 1001, 300, src_crsr, sink_crsr)
 close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
