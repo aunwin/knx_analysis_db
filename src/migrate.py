@@ -74,15 +74,37 @@ def migrate_one_record(row):
 
 
 def migrate_records(offset, row_cnt, read_cursor, write_cursor):
-    sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
-                 f'from knxlog.knxlog ' \
-                 f'LIMIT {offset}, {row_cnt}'
-    read_cursor.execute(sql_select)
+    if row_cnt-offset < 1000:
+        sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
+                     f'from knxlog.knxlog ' \
+                     f'LIMIT {offset}, {row_cnt}'
+        read_cursor.execute(sql_select)
 
-    for row in read_cursor:
-        migrate_one_record(row)
+        for row in read_cursor:
+            migrate_one_record(row)
 
-    return
+        return
+    else:
+        counter_migrated_tuples = 0
+        sum_tuples_to_migrate = row_cnt - offset
+        while sum_tuples_to_migrate > counter_migrated_tuples:
+            if row_cnt - offset > 1000:
+                workload = 1000
+            else:
+                workload = row_cnt - offset
+            sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
+                         f'from knxlog.knxlog ' \
+                         f'LIMIT {offset}, {offset + workload}'
+            read_cursor.execute(sql_select)
+
+            for row in read_cursor:
+                migrate_one_record(row)
+
+            print(f'{100/sum_tuples_to_migrate*counter_migrated_tuples}% done')
+            offset += workload
+            counter_migrated_tuples += workload
+
+        return
 
 
 src_connection = pymysql.connect(host=db_cfg.src_db['host'],
@@ -105,7 +127,7 @@ sink_cursor = sink_connection.cursor()
 # request db version
 src_cursor.execute("SELECT VERSION()")
 db_version = src_cursor.fetchone()
-print("DB version: %s " % db_version)
+print(f'DB version: {db_version}')
 
 
 migrate_records(0, 10, src_cursor, sink_cursor)
