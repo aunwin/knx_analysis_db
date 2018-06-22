@@ -7,41 +7,32 @@ import databaseconfig as db_cfg
 
 import baos_knx_parser as knx
 
-WORKLOAD_SIZE = 10
 
-
-def migrate_records(offset, row_cnt, read_cursor, write_cursor):
-    if row_cnt - offset <= WORKLOAD_SIZE:
+def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
+    counter_migrated_tuples = 0
+    total_tuples = row_cnt - offset
+    while counter_migrated_tuples < row_cnt:
+        left_tuples = total_tuples - counter_migrated_tuples
+        if left_tuples > workload_size:
+            limit = workload_size
+        else:
+            limit = left_tuples
         sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
                      f'from knxlog.knxlog ' \
-                     f'LIMIT {offset}, {row_cnt}'
+                     f'LIMIT {limit} OFFSET {offset + counter_migrated_tuples}'
+
+        print(f'sql_select statement to be executed = {sql_select}')
         read_cursor.execute(sql_select)
+
+        print(f'size of read_cursor = {read_cursor.rowcount}')
 
         for row in read_cursor:
             migrate_one_record(row, write_cursor)
 
-        return
-    else:
-        counter_migrated_tuples = 0
-        sum_tuples_to_migrate = row_cnt - offset
-        while sum_tuples_to_migrate > counter_migrated_tuples:
-            if row_cnt - offset > WORKLOAD_SIZE:
-                workload = WORKLOAD_SIZE
-            else:
-                workload = row_cnt - offset
-            sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
-                         f'from knxlog.knxlog ' \
-                         f'LIMIT {offset}, {offset + workload}'
-            read_cursor.execute(sql_select)
+        counter_migrated_tuples += limit
+        print(f'{(100 / total_tuples * counter_migrated_tuples):.4} % work done.')
 
-            for row in read_cursor:
-                migrate_one_record(row, write_cursor)
-
-            print(f'{100/sum_tuples_to_migrate*counter_migrated_tuples}% done')
-            offset += workload
-            counter_migrated_tuples += workload
-
-        return
+    return
 
 
 def migrate_one_record(row, sink_cursor):
@@ -146,6 +137,6 @@ def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor
 
 
 src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(0, 11, src_crsr, sink_crsr)
+migrate_records(0, 11, 10, src_crsr, sink_crsr)
 close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
