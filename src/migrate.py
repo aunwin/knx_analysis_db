@@ -67,7 +67,7 @@ def translate_to_sink_row(src_row):
     sink_row.priority = src_telegram.priority                           # from BaosKnxParser
     sink_row.repeated = src_telegram.repeat                             # from BaosKnxParser
     sink_row.hop_count = src_telegram.hop_count                         # from BaosKnxParser
-    sink_row.apdu = src_telegram.payload                                # from BaosKnxParser
+    sink_row.apdu = src_telegram.payload.hex()                          # from BaosKnxParser
     sink_row.payload_length = src_telegram.payload_length               # from BaosKnxParser
     sink_row.cemi = src_row.cemi                                        # unchanged
     sink_row.is_manipulated = False                                     # 0 = FALSE
@@ -135,6 +135,6 @@ def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor
 
 
 src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(63790, 63810, 300, src_crsr, sink_crsr)
+migrate_records(0, 10000000, 500, src_crsr, sink_crsr)
 close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
