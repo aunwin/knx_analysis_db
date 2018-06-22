@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import pymysql
-import srcRow
-import sinkRow
-import databaseconfig as db_cfg
+from src import srcRow
+from src import sinkRow
+from src import databaseconfig as db_cfg
 
 import baos_knx_parser as knx
 
@@ -11,12 +11,13 @@ import baos_knx_parser as knx
 def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
     counter_migrated_tuples = 0
     total_tuples = row_cnt - offset
-    while counter_migrated_tuples < row_cnt:
+    while counter_migrated_tuples < row_cnt - offset:
         left_tuples = total_tuples - counter_migrated_tuples
         if left_tuples > workload_size:
             limit = workload_size
         else:
             limit = left_tuples
+
         sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
                      f'from knxlog.knxlog ' \
                      f'LIMIT {limit} OFFSET {offset + counter_migrated_tuples}'
@@ -134,6 +135,6 @@ def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor
 
 
 src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(0, 1001, 300, src_crsr, sink_crsr)
+migrate_records(63790, 63810, 300, src_crsr, sink_crsr)
 close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
