@@ -7,6 +7,63 @@ import databaseconfig as db_cfg
 
 import baos_knx_parser as knx
 
+WORKLOAD_SIZE = 10
+
+
+def migrate_records(offset, row_cnt, read_cursor, write_cursor):
+    if row_cnt - offset <= WORKLOAD_SIZE:
+        sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
+                     f'from knxlog.knxlog ' \
+                     f'LIMIT {offset}, {row_cnt}'
+        read_cursor.execute(sql_select)
+
+        for row in read_cursor:
+            migrate_one_record(row, write_cursor)
+
+        return
+    else:
+        counter_migrated_tuples = 0
+        sum_tuples_to_migrate = row_cnt - offset
+        while sum_tuples_to_migrate > counter_migrated_tuples:
+            if row_cnt - offset > WORKLOAD_SIZE:
+                workload = WORKLOAD_SIZE
+            else:
+                workload = row_cnt - offset
+            sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
+                         f'from knxlog.knxlog ' \
+                         f'LIMIT {offset}, {offset + workload}'
+            read_cursor.execute(sql_select)
+
+            for row in read_cursor:
+                migrate_one_record(row, write_cursor)
+
+            print(f'{100/sum_tuples_to_migrate*counter_migrated_tuples}% done')
+            offset += workload
+            counter_migrated_tuples += workload
+
+        return
+
+
+def migrate_one_record(row, sink_cursor):
+    # Fill src-Object
+    src_row = srcRow.SrcRow()
+
+    src_row.id = row[0]
+    src_row.time = row[1]
+    src_row.date = row[2]
+    src_row.source_address = row[3]
+    src_row.destination_address = row[4]
+    src_row.data = row[5]
+    src_row.cemi = row[6]
+
+    # Fill sink-Object
+    sink_row = translate_to_sink_row(src_row)
+
+    # Write sink-Row
+    write_row_with_cursor(sink_row, sink_cursor)
+
+    return
+
 
 def translate_to_sink_row(src_row):
     sink_row = sinkRow.SinkRow()
@@ -52,90 +109,43 @@ def write_row_with_cursor(row, cursor):
     return
 
 
-def migrate_one_record(row):
-    # Fill src-Object
-    src_row = srcRow.SrcRow()
+def init_db_connections():
+    src_connection = pymysql.connect(host=db_cfg.src_db['host'],
+                                     user=db_cfg.src_db['user'],
+                                     passwd=db_cfg.src_db['passwd'],
+                                     db=db_cfg.src_db['db'],
+                                     autocommit=db_cfg.src_db['autocommit'], )
+    # Connect to the database
+    src_cursor = src_connection.cursor()
 
-    src_row.id = row[0]
-    src_row.time = row[1]
-    src_row.date = row[2]
-    src_row.source_address = row[3]
-    src_row.destination_address = row[4]
-    src_row.data = row[5]
-    src_row.cemi = row[6]
+    sink_connection = pymysql.connect(host=db_cfg.sink_db['host'],
+                                      user=db_cfg.sink_db['user'],
+                                      passwd=db_cfg.sink_db['passwd'],
+                                      db=db_cfg.sink_db['db'],
+                                      autocommit=db_cfg.sink_db['autocommit'], )
+    # Connect to the database
+    sink_cursor = sink_connection.cursor()
 
-    # Fill sink-Object
-    sink_row = translate_to_sink_row(src_row)
 
-    # Write sink-Row
-    write_row_with_cursor(sink_row, sink_cursor)
+    # request db version
+    src_cursor.execute("SELECT VERSION()")
+    db_version = src_cursor.fetchone()
+    print(f'DB version: {db_version}')
+
+    return (src_connection, sink_connection, src_cursor, sink_cursor)
+
+
+def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor):
+    # Clean up
+    src_cursor.close()
+    src_connection.close()
+    sink_cursor.close()
+    sink_connection.close()
 
     return
 
 
-def migrate_records(offset, row_cnt, read_cursor, write_cursor):
-    if row_cnt-offset < 1000:
-        sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
-                     f'from knxlog.knxlog ' \
-                     f'LIMIT {offset}, {row_cnt}'
-        read_cursor.execute(sql_select)
-
-        for row in read_cursor:
-            migrate_one_record(row)
-
-        return
-    else:
-        counter_migrated_tuples = 0
-        sum_tuples_to_migrate = row_cnt - offset
-        while sum_tuples_to_migrate > counter_migrated_tuples:
-            if row_cnt - offset > 1000:
-                workload = 1000
-            else:
-                workload = row_cnt - offset
-            sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
-                         f'from knxlog.knxlog ' \
-                         f'LIMIT {offset}, {offset + workload}'
-            read_cursor.execute(sql_select)
-
-            for row in read_cursor:
-                migrate_one_record(row)
-
-            print(f'{100/sum_tuples_to_migrate*counter_migrated_tuples}% done')
-            offset += workload
-            counter_migrated_tuples += workload
-
-        return
-
-
-src_connection = pymysql.connect(host=db_cfg.src_db['host'],
-                                 user=db_cfg.src_db['user'],
-                                 passwd=db_cfg.src_db['passwd'],
-                                 db=db_cfg.src_db['db'],
-                                 autocommit=db_cfg.src_db['autocommit'], )
-# Connect to the database
-src_cursor = src_connection.cursor()
-
-sink_connection = pymysql.connect(host=db_cfg.sink_db['host'],
-                                  user=db_cfg.sink_db['user'],
-                                  passwd=db_cfg.sink_db['passwd'],
-                                  db=db_cfg.sink_db['db'],
-                                  autocommit=db_cfg.sink_db['autocommit'], )
-# Connect to the database
-sink_cursor = sink_connection.cursor()
-
-
-# request db version
-src_cursor.execute("SELECT VERSION()")
-db_version = src_cursor.fetchone()
-print(f'DB version: {db_version}')
-
-
-migrate_records(0, 10, src_cursor, sink_cursor)
-
-# Clean up
-src_cursor.close()
-src_connection.close()
-sink_cursor.close()
-sink_connection.close()
-
+src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
+migrate_records(0, 11, src_crsr, sink_crsr)
+close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
