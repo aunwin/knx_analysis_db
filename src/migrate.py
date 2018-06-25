@@ -10,9 +10,8 @@ import baos_knx_parser as knx
 
 def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
     counter_migrated_tuples = 0
-    total_tuples = row_cnt - offset
-    while counter_migrated_tuples < row_cnt - offset:
-        left_tuples = total_tuples - counter_migrated_tuples
+    while counter_migrated_tuples < row_cnt:
+        left_tuples = row_cnt - counter_migrated_tuples
         if left_tuples > workload_size:
             limit = workload_size
         else:
@@ -28,7 +27,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
             migrate_one_record(row, write_cursor)
 
         counter_migrated_tuples += limit
-        print(f'{(100 / total_tuples * counter_migrated_tuples):.4} % work done.')
+        print(f'{(100 / row_cnt * counter_migrated_tuples):.4} % work done.')
 
     return
 
