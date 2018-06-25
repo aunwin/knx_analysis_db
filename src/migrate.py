@@ -29,6 +29,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
             migrate_one_record(row, write_cursor)
 
         counter_migrated_tuples += limit
+
         end = timer()
         if (row_cnt / counter_migrated_tuples) * (end - start) < 600:
             remaining_time = f'{((row_cnt / counter_migrated_tuples) * (end - start)) - (end - start):.4} seconds'
@@ -38,7 +39,13 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
         else:
             remaining_time = \
                 f'{((row_cnt / counter_migrated_tuples) * (end - start) / 60) - (end - start) / 60:.4} minutes'
-        print(f'{(100 / row_cnt * counter_migrated_tuples):.4} % work done in {(end - start):.4} seconds '
+        if (end - start) < 600:
+            runtime = f'{(end - start):.4} seconds'
+        elif (end - start) > 36000:
+            runtime = f'{((end - start) / 3600):.4} hours'
+        else:
+            runtime = f'{((end - start) / 60):.4} minutes'
+        print(f'{(100 / row_cnt * counter_migrated_tuples):.4} % work done in {runtime} '
               f'- estimated remaining time: {remaining_time}')
 
     return
