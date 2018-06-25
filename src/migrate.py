@@ -31,11 +31,13 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
         counter_migrated_tuples += limit
         end = timer()
         if (row_cnt / counter_migrated_tuples) * (end - start) < 600:
-            remaining_time = f'{(row_cnt / counter_migrated_tuples) * (end - start):.4} seconds'
+            remaining_time = f'{((row_cnt / counter_migrated_tuples) * (end - start)) - (end - start):.4} seconds'
         elif (row_cnt / counter_migrated_tuples) * (end - start) > 36000:
-            remaining_time = f'{(row_cnt / counter_migrated_tuples) * (end - start) / 60 / 60:.4} hours'
+            remaining_time = \
+                f'{((row_cnt / counter_migrated_tuples) * (end - start) / 3600) - (end - start) / 3600:.4} hours'
         else:
-            remaining_time = f'{(row_cnt / counter_migrated_tuples) * (end - start) / 60:.4} minutes'
+            remaining_time = \
+                f'{((row_cnt / counter_migrated_tuples) * (end - start) / 60) - (end - start) / 60:.4} minutes'
         print(f'{(100 / row_cnt * counter_migrated_tuples):.4} % work done in {(end - start):.4} seconds '
               f'- estimated remaining time: {remaining_time}')
 
@@ -146,6 +148,6 @@ def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor
 
 
 src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(1000, 1000000, 100, src_crsr, sink_crsr)
+migrate_records(1000, 1200, 100, src_crsr, sink_crsr)
 close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
