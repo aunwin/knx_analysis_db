@@ -4,6 +4,7 @@ class SinkRow:
     source_addr = None
     destination_addr = None
     apci = None
+    tpci = None
     priority = None
     repeated = None
     hop_count = None

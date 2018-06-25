@@ -64,6 +64,7 @@ def translate_to_sink_row(src_row):
     sink_row.source_addr = src_row.source_address                       # unchanged
     sink_row.destination_addr = src_row.destination_address             # unchanged
     sink_row.apci = src_telegram.apci                                   # from BaosKnxParser
+    sink_row.tpci = src_telegram.tpci                                   # from BaosKnxParser
     sink_row.priority = src_telegram.priority                           # from BaosKnxParser
     sink_row.repeated = src_telegram.repeat                             # from BaosKnxParser
     sink_row.hop_count = src_telegram.hop_count                         # from BaosKnxParser
@@ -83,6 +84,7 @@ def write_row_with_cursor(row, cursor):
                 f'"{row.source_addr}", ' \
                 f'"{row.destination_addr}", ' \
                 f'"{row.apci}", ' \
+                f'"{row.tpci}", ' \
                 f'"{row.priority}", ' \
                 f'{row.repeated}, ' \
                 f'{row.hop_count}, ' \
