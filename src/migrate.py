@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pymysql
+from timeit import default_timer as timer
 from src import srcRow
 from src import sinkRow
 from src import databaseconfig as db_cfg
@@ -10,6 +11,7 @@ import baos_knx_parser as knx
 
 def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
     counter_migrated_tuples = 0
+    start = timer()
     while counter_migrated_tuples < row_cnt:
         left_tuples = row_cnt - counter_migrated_tuples
         if left_tuples > workload_size:
@@ -27,7 +29,15 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
             migrate_one_record(row, write_cursor)
 
         counter_migrated_tuples += limit
-        print(f'{(100 / row_cnt * counter_migrated_tuples):.4} % work done.')
+        end = timer()
+        if (row_cnt / counter_migrated_tuples) * (end - start) < 600:
+            remaining_time = f'{(row_cnt / counter_migrated_tuples) * (end - start):.4} seconds'
+        elif (row_cnt / counter_migrated_tuples) * (end - start) > 36000:
+            remaining_time = f'{(row_cnt / counter_migrated_tuples) * (end - start) / 60 / 60:.4} hours'
+        else:
+            remaining_time = f'{(row_cnt / counter_migrated_tuples) * (end - start) / 60:.4} minutes'
+        print(f'{(100 / row_cnt * counter_migrated_tuples):.4} % work done in {(end - start):.4} seconds '
+              f'- estimated remaining time: {remaining_time}')
 
     return
 
@@ -136,6 +146,6 @@ def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor
 
 
 src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(0, 10000000, 500, src_crsr, sink_crsr)
+migrate_records(1000, 1000000, 100, src_crsr, sink_crsr)
 close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
