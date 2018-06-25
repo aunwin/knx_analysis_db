@@ -118,7 +118,7 @@ def write_row_with_cursor(row, cursor):
     sink_table = db_cfg.sink_db['table']
 
     sql_cmd = f'INSERT INTO {sink_db}.{sink_table} VALUES ({sql_param});'
-    print(f'sql_cmd to be executed: {sql_cmd}')
+    # print(f'sql_cmd to be executed: {sql_cmd}')
     cursor.execute(sql_cmd)
     return
 
@@ -160,6 +160,6 @@ def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor
 
 
 src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(0, 10, 100, src_crsr, sink_crsr)
+migrate_records(100000, 2000000, 1000, src_crsr, sink_crsr)
 close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
 
