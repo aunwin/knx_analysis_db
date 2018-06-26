@@ -31,7 +31,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, w
 
         prepare_migration_batch = []
         for row in read_cursor:
-            snk_row = migrate_one_record(row)
+            snk_row = translate_one_record(row)
             prepare_migration_batch.append((str(snk_row.timestamp), str(snk_row.source_addr),
                                            str(snk_row.destination_addr), str(snk_row.apci), str(snk_row.tpci),
                                            str(snk_row.priority), snk_row.repeated, snk_row.hop_count,
@@ -40,7 +40,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, w
 
         stmt = f'INSERT INTO {sink_db}.knx_dump_test (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
                f'repeated, hop_count, apdu, payload_length, cemi, is_manipulated) ' \
-               f'VALUES (%s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s, %s);'
+               f'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);'
         write_cursor.executemany(stmt, prepare_migration_batch)
         write_connection.commit()
         counter_migrated_tuples += limit
@@ -66,7 +66,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, w
     return
 
 
-def migrate_one_record(row):
+def translate_one_record(row):
     # Fill src-Object
     src_row = srcRow.SrcRow()
 
