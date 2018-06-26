@@ -21,15 +21,25 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
             limit = left_tuples
 
         src_db = db_cfg.src_db['db']
-        src_table = db_cfg.src_db['table']
         sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
-                     f'from {src_db}.{src_table} ' \
+                     f'from {src_db}.knxlog ' \
                      f'LIMIT {limit} OFFSET {offset + counter_migrated_tuples}'
 
         read_cursor.execute(sql_select)
 
+        prepare_migration_batch = []
         for row in read_cursor:
-            migrate_one_record(row, write_cursor)
+            snk_row = migrate_one_record(row)
+            prepare_migration_batch.append((str(snk_row.timestamp), str(snk_row.source_addr),
+                                           str(snk_row.destination_addr), str(snk_row.apci), str(snk_row.tpci),
+                                           str(snk_row.priority), snk_row.repeated, snk_row.hop_count,
+                                           str(snk_row.apdu), snk_row.payload_length, str(snk_row.cemi),
+                                           snk_row.is_manipulated))
+
+        stmt = f'INSERT INTO bus_dump.knx_dump_test (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
+               f'repeated, hop_count, apdu, payload_length, cemi, is_manipulated) ' \
+               f'VALUES (%s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s, %s);'
+        write_cursor.executemany(stmt, prepare_migration_batch)
 
         counter_migrated_tuples += limit
 
@@ -54,7 +64,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
     return
 
 
-def migrate_one_record(row, sink_cursor):
+def migrate_one_record(row):
     # Fill src-Object
     src_row = srcRow.SrcRow()
 
@@ -69,10 +79,7 @@ def migrate_one_record(row, sink_cursor):
     # Fill sink-Object
     sink_row = translate_to_sink_row(src_row)
 
-    # Write sink-Row
-    write_row_with_cursor(sink_row, sink_cursor)
-
-    return
+    return sink_row
 
 
 def translate_to_sink_row(src_row):
@@ -98,35 +105,21 @@ def translate_to_sink_row(src_row):
     return sink_row
 
 
-def write_row_with_cursor(row, cursor):
-
-    sql_param = f'{row.sequence_number}, ' \
-                f'"{row.timestamp}", ' \
-                f'"{row.source_addr}", ' \
-                f'"{row.destination_addr}", ' \
-                f'"{row.apci}", ' \
-                f'"{row.tpci}", ' \
-                f'"{row.priority}", ' \
-                f'{row.repeated}, ' \
-                f'{row.hop_count}, ' \
-                f'"{row.apdu}", ' \
-                f'{row.payload_length}, ' \
-                f'"{row.cemi}", ' \
-                f'{row.is_manipulated}, ' \
-                f'{row.attack_type_id}'
-
-    sink_db = db_cfg.sink_db['db']
-    sink_table = db_cfg.sink_db['table']
-
-    sql_cmd = f'INSERT INTO {sink_db}.{sink_table} VALUES ({sql_param});'
-    # print(f'sql_cmd to be executed: {sql_cmd}')
-    cursor.execute(sql_cmd)
-    return
-
-
 def init_db_connections():
+    source_connection = None
+    source_cursor = None
+    sink_connection = None
+    sink_cursor = None
+
     try:
         source_connection = mysql.connector.connect(**db_cfg.src_db)
+        source_cursor = source_connection.cursor()
+
+        # get version of database
+        source_cursor.execute("SELECT VERSION()")
+        db_version = source_cursor.fetchone()
+        print(f'DB version: {db_version}')
+
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Something is wrong with your user name or password")
@@ -134,10 +127,10 @@ def init_db_connections():
             print("Database does not exist")
         else:
             print(err)
-    source_cursor = source_connection.cursor()
 
     try:
         sink_connection = mysql.connector.connect(**db_cfg.sink_db)
+        sink_cursor = sink_connection.cursor()
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Something is wrong with your user name or password")
@@ -145,27 +138,21 @@ def init_db_connections():
             print("Database does not exist")
         else:
             print(err)
-    sink_cursor = sink_connection.cursor()
-
-    # get version of database
-    source_cursor.execute("SELECT VERSION()")
-    db_version = source_cursor.fetchone()
-    print(f'DB version: {db_version}')
 
     return source_connection, sink_connection, source_cursor, sink_cursor
 
 
-def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor):
+def close_db_connection(source_connection, sink_connection, source_cursor, sink_cursor):
     # Clean up
-    src_cursor.close()
-    src_connection.close()
+    source_cursor.close()
+    source_connection.close()
     sink_cursor.close()
-    sink_connection.close()
+    sink_connection.close()#
 
     return
 
 
-src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(100000, 2000000, 1000, src_crsr, sink_crsr)
-close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
+src_conn, sink_conn, src_csr, snk_csr = init_db_connections()
+migrate_records(0, 10000, 100, src_csr, snk_csr)
+close_db_connection(src_conn, sink_conn, src_csr, snk_csr)
 
