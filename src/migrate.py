@@ -10,7 +10,7 @@ from src import databaseconfig as db_cfg
 import baos_knx_parser as knx
 
 
-def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
+def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, write_connection):
     counter_migrated_tuples = 0
     start = timer()
     while counter_migrated_tuples < row_cnt:
@@ -40,7 +40,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
                f'repeated, hop_count, apdu, payload_length, cemi, is_manipulated) ' \
                f'VALUES (%s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s, %s);'
         write_cursor.executemany(stmt, prepare_migration_batch)
-
+        write_connection.commit()
         counter_migrated_tuples += limit
 
         end = timer()
@@ -153,6 +153,6 @@ def close_db_connection(source_connection, sink_connection, source_cursor, sink_
 
 
 src_conn, sink_conn, src_csr, snk_csr = init_db_connections()
-migrate_records(0, 10000, 100, src_csr, snk_csr)
+migrate_records(0, 10000, 1000, src_csr, snk_csr, sink_conn)
 close_db_connection(src_conn, sink_conn, src_csr, snk_csr)
 
