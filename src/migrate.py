@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import pymysql
+import mysql.connector
+from mysql.connector import errorcode
 from timeit import default_timer as timer
 from src import srcRow
 from src import sinkRow
@@ -124,29 +125,34 @@ def write_row_with_cursor(row, cursor):
 
 
 def init_db_connections():
-    src_connection = pymysql.connect(host=db_cfg.src_db['host'],
-                                     user=db_cfg.src_db['user'],
-                                     passwd=db_cfg.src_db['passwd'],
-                                     db=db_cfg.src_db['db'],
-                                     autocommit=db_cfg.src_db['autocommit'], )
-    # Connect to the database
-    src_cursor = src_connection.cursor()
+    try:
+        source_connection = mysql.connector.connect(**db_cfg.src_db)
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
+    source_cursor = source_connection.cursor()
 
-    sink_connection = pymysql.connect(host=db_cfg.sink_db['host'],
-                                      user=db_cfg.sink_db['user'],
-                                      passwd=db_cfg.sink_db['passwd'],
-                                      db=db_cfg.sink_db['db'],
-                                      autocommit=db_cfg.sink_db['autocommit'], )
-    # Connect to the database
+    try:
+        sink_connection = mysql.connector.connect(**db_cfg.sink_db)
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
     sink_cursor = sink_connection.cursor()
 
-
-    # request db version
-    src_cursor.execute("SELECT VERSION()")
-    db_version = src_cursor.fetchone()
+    # get version of database
+    source_cursor.execute("SELECT VERSION()")
+    db_version = source_cursor.fetchone()
     print(f'DB version: {db_version}')
 
-    return (src_connection, sink_connection, src_cursor, sink_cursor)
+    return source_connection, sink_connection, source_cursor, sink_cursor
 
 
 def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor):
