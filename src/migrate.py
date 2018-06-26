@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import pymysql
+import mysql.connector
+from mysql.connector import errorcode
 from timeit import default_timer as timer
 from src import srcRow
 from src import sinkRow
@@ -9,9 +10,10 @@ from src import databaseconfig as db_cfg
 import baos_knx_parser as knx
 
 
-def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
+def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, write_connection):
     counter_migrated_tuples = 0
     start = timer()
+
     while counter_migrated_tuples < row_cnt:
         left_tuples = row_cnt - counter_migrated_tuples
         if left_tuples > workload_size:
@@ -20,16 +22,27 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
             limit = left_tuples
 
         src_db = db_cfg.src_db['db']
-        src_table = db_cfg.src_db['table']
+        sink_db = db_cfg.sink_db['db']
         sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
-                     f'from {src_db}.{src_table} ' \
+                     f'from {src_db}.knxlog ' \
                      f'LIMIT {limit} OFFSET {offset + counter_migrated_tuples}'
 
         read_cursor.execute(sql_select)
 
+        prepare_migration_batch = []
         for row in read_cursor:
-            migrate_one_record(row, write_cursor)
+            snk_row = migrate_one_record(row)
+            prepare_migration_batch.append((str(snk_row.timestamp), str(snk_row.source_addr),
+                                           str(snk_row.destination_addr), str(snk_row.apci), str(snk_row.tpci),
+                                           str(snk_row.priority), snk_row.repeated, snk_row.hop_count,
+                                           str(snk_row.apdu), snk_row.payload_length, str(snk_row.cemi),
+                                           snk_row.is_manipulated))
 
+        stmt = f'INSERT INTO {sink_db}.knx_dump_test (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
+               f'repeated, hop_count, apdu, payload_length, cemi, is_manipulated) ' \
+               f'VALUES (%s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s, %s);'
+        write_cursor.executemany(stmt, prepare_migration_batch)
+        write_connection.commit()
         counter_migrated_tuples += limit
 
         end = timer()
@@ -53,7 +66,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor):
     return
 
 
-def migrate_one_record(row, sink_cursor):
+def migrate_one_record(row):
     # Fill src-Object
     src_row = srcRow.SrcRow()
 
@@ -68,10 +81,7 @@ def migrate_one_record(row, sink_cursor):
     # Fill sink-Object
     sink_row = translate_to_sink_row(src_row)
 
-    # Write sink-Row
-    write_row_with_cursor(sink_row, sink_cursor)
-
-    return
+    return sink_row
 
 
 def translate_to_sink_row(src_row):
@@ -97,69 +107,54 @@ def translate_to_sink_row(src_row):
     return sink_row
 
 
-def write_row_with_cursor(row, cursor):
-
-    sql_param = f'{row.sequence_number}, ' \
-                f'"{row.timestamp}", ' \
-                f'"{row.source_addr}", ' \
-                f'"{row.destination_addr}", ' \
-                f'"{row.apci}", ' \
-                f'"{row.tpci}", ' \
-                f'"{row.priority}", ' \
-                f'{row.repeated}, ' \
-                f'{row.hop_count}, ' \
-                f'"{row.apdu}", ' \
-                f'{row.payload_length}, ' \
-                f'"{row.cemi}", ' \
-                f'{row.is_manipulated}, ' \
-                f'{row.attack_type_id}'
-
-    sink_db = db_cfg.sink_db['db']
-    sink_table = db_cfg.sink_db['table']
-
-    sql_cmd = f'INSERT INTO {sink_db}.{sink_table} VALUES ({sql_param});'
-    # print(f'sql_cmd to be executed: {sql_cmd}')
-    cursor.execute(sql_cmd)
-    return
-
-
 def init_db_connections():
-    src_connection = pymysql.connect(host=db_cfg.src_db['host'],
-                                     user=db_cfg.src_db['user'],
-                                     passwd=db_cfg.src_db['passwd'],
-                                     db=db_cfg.src_db['db'],
-                                     autocommit=db_cfg.src_db['autocommit'], )
-    # Connect to the database
-    src_cursor = src_connection.cursor()
+    source_connection = None
+    source_cursor = None
+    sink_connection = None
+    sink_cursor = None
 
-    sink_connection = pymysql.connect(host=db_cfg.sink_db['host'],
-                                      user=db_cfg.sink_db['user'],
-                                      passwd=db_cfg.sink_db['passwd'],
-                                      db=db_cfg.sink_db['db'],
-                                      autocommit=db_cfg.sink_db['autocommit'], )
-    # Connect to the database
-    sink_cursor = sink_connection.cursor()
+    try:
+        source_connection = mysql.connector.connect(**db_cfg.src_db)
+        source_cursor = source_connection.cursor()
+
+        # get version of database
+        source_cursor.execute("SELECT VERSION()")
+        db_version = source_cursor.fetchone()
+        print(f'DB version: {db_version}')
+
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
+
+    try:
+        sink_connection = mysql.connector.connect(**db_cfg.sink_db)
+        sink_cursor = sink_connection.cursor()
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
+
+    return source_connection, sink_connection, source_cursor, sink_cursor
 
 
-    # request db version
-    src_cursor.execute("SELECT VERSION()")
-    db_version = src_cursor.fetchone()
-    print(f'DB version: {db_version}')
-
-    return (src_connection, sink_connection, src_cursor, sink_cursor)
-
-
-def close_db_connection(src_connection, sink_connection, src_cursor, sink_cursor):
+def close_db_connection(source_connection, sink_connection, source_cursor, sink_cursor):
     # Clean up
-    src_cursor.close()
-    src_connection.close()
+    source_cursor.close()
+    source_connection.close()
     sink_cursor.close()
-    sink_connection.close()
+    sink_connection.close()#
 
     return
 
 
-src_conn, sink_conn, src_crsr, sink_crsr = init_db_connections()
-migrate_records(100000, 2000000, 1000, src_crsr, sink_crsr)
-close_db_connection(src_conn, sink_conn, src_crsr, sink_crsr)
+src_conn, sink_conn, src_csr, snk_csr = init_db_connections()
+migrate_records(0, 10000, 1000, src_csr, snk_csr, sink_conn)
+close_db_connection(src_conn, sink_conn, src_csr, snk_csr)
 
