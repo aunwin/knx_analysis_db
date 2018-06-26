@@ -13,6 +13,7 @@ import baos_knx_parser as knx
 def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, write_connection):
     counter_migrated_tuples = 0
     start = timer()
+
     while counter_migrated_tuples < row_cnt:
         left_tuples = row_cnt - counter_migrated_tuples
         if left_tuples > workload_size:
@@ -21,6 +22,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, w
             limit = left_tuples
 
         src_db = db_cfg.src_db['db']
+        sink_db = db_cfg.sink_db['db']
         sql_select = f'SELECT id, Time, Date, SourceAddress, DestinationAddress, Data, cemi ' \
                      f'from {src_db}.knxlog ' \
                      f'LIMIT {limit} OFFSET {offset + counter_migrated_tuples}'
@@ -36,7 +38,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, w
                                            str(snk_row.apdu), snk_row.payload_length, str(snk_row.cemi),
                                            snk_row.is_manipulated))
 
-        stmt = f'INSERT INTO bus_dump.knx_dump_test (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
+        stmt = f'INSERT INTO {sink_db}.knx_dump_test (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
                f'repeated, hop_count, apdu, payload_length, cemi, is_manipulated) ' \
                f'VALUES (%s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s, %s);'
         write_cursor.executemany(stmt, prepare_migration_batch)
