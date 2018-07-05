@@ -1,5 +1,5 @@
 .idea/*
-src/__pycache__/
+migrate_db/__pycache__/
 
 # prevent configuration details from committing
-*config.py
+config/*
