@@ -3,9 +3,9 @@
 import mysql.connector
 from mysql.connector import errorcode
 from timeit import default_timer as timer
-from src import srcRow
-from src import sinkRow
-from src import databaseconfig as db_cfg
+from migrate_db import srcRow
+from migrate_db import sinkRow
+from migrate_db import databaseconfig as db_cfg
 
 import baos_knx_parser as knx
 
@@ -67,7 +67,7 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, w
 
 
 def translate_one_record(row):
-    # Fill src-Object
+    # Fill migrate_db-Object
     src_row = srcRow.SrcRow()
 
     src_row.id = row[0]
