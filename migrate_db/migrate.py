@@ -5,7 +5,7 @@ from mysql.connector import errorcode
 from timeit import default_timer as timer
 from migrate_db import srcRow
 from migrate_db import sinkRow
-from migrate_db import databaseconfig as db_cfg
+from config import databaseconfig as db_cfg
 
 import baos_knx_parser as knx
 
@@ -149,7 +149,7 @@ def close_db_connection(source_connection, sink_connection, source_cursor, sink_
     source_cursor.close()
     source_connection.close()
     sink_cursor.close()
-    sink_connection.close()#
+    sink_connection.close()
 
     return
 
