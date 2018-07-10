@@ -8,12 +8,16 @@ from config import databaseconfig as db_cfg
 
 
 def get_data(database_cursor):
-    get_different_source_addresses = True
-    get_number_of_apdus_per_physical_address = True
+    get_different_source_addresses = False
+    get_number_of_apdus_per_physical_address = False
+    get_data_of_weather_station = False
+    get_different_apcis = False
+    get_different_tpcis = False
 
     if get_different_source_addresses:
         start = timer()
-        database_cursor.execute("SELECT DISTINCT source_addr FROM bus_dump.knx_dump_test;")
+        query = "SELECT DISTINCT source_addr FROM bus_dump.knx_dump_test;"
+        database_cursor.execute(query)
         column_names = [i[0] for i in database_cursor.description]
         with open('data/get_different_source_addresses.csv', 'w') as file:
             csv_out = csv.writer(file, lineterminator='\n', delimiter='\t')
@@ -24,11 +28,12 @@ def get_data(database_cursor):
 
         end = timer()
         runtime = end - start
-        print(f'Query ({get_different_source_addresses})was running for {runtime:.4} seconds')
+        print(f'Query ({query})was running for {runtime:.4} seconds')
 
     if get_number_of_apdus_per_physical_address:
         start = timer()
-        database_cursor.execute("SELECT DISTINCT source_addr AS src, (SELECT COUNT(DISTINCT apdu) FROM bus_dump.knx_dump_test WHERE source_addr=src) FROM bus_dump.knx_dump_test;")
+        query = "SELECT DISTINCT source_addr AS src, (SELECT COUNT(DISTINCT apdu) FROM bus_dump.knx_dump_test WHERE source_addr=src) FROM bus_dump.knx_dump_test;"
+        database_cursor.execute(query)
         column_names = [i[0] for i in database_cursor.description]
         with open('data/get_number_of_apdus_per_physical_address.csv', 'w') as file:
             csv_out = csv.writer(file, lineterminator='\n', delimiter='\t')
@@ -39,7 +44,55 @@ def get_data(database_cursor):
 
         end = timer()
         runtime = end - start
-        print(f'Query ({get_number_of_apdus_per_physical_address})was running for {runtime:.4} seconds')
+        print(f'Query ({query})was running for {runtime:.4} seconds')
+
+    if get_data_of_weather_station:
+        start = timer()
+        query = "SELECT * FROM bus_dump.knx_dump_test WHERE source_addr = '3.3.29';"
+        database_cursor.execute(query)
+        column_names = [i[0] for i in database_cursor.description]
+        with open('data/get_data_of_weather_station.csv', 'w') as file:
+            csv_out = csv.writer(file, lineterminator='\n', delimiter='\t')
+            csv_out.writerow(column_names)
+            for row in database_cursor:
+                csv_out.writerow(row)
+        file.close()
+
+        end = timer()
+        runtime = end - start
+        print(f'Query ({query})was running for {runtime:.4} seconds')
+
+    if get_different_apcis:
+        start = timer()
+        query = "SELECT DISTINCT apci AS value, (SELECT COUNT(apci) FROM bus_dump.knx_dump_test WHERE apci=value) FROM bus_dump.knx_dump_test;"
+        database_cursor.execute(query)
+        column_names = [i[0] for i in database_cursor.description]
+        with open('data/get_different_apcis.csv', 'w') as file:
+            csv_out = csv.writer(file, lineterminator='\n', delimiter='\t')
+            csv_out.writerow(column_names)
+            for row in database_cursor:
+                csv_out.writerow(row)
+        file.close()
+
+        end = timer()
+        runtime = end - start
+        print(f'Query ({query})was running for {runtime:.4} seconds')
+
+    if get_different_tpcis:
+        start = timer()
+        query = "SELECT DISTINCT tpci AS value, (SELECT COUNT(tpci) FROM bus_dump.knx_dump_test WHERE tpci=value) FROM bus_dump.knx_dump_test;"
+        database_cursor.execute(query)
+        column_names = [i[0] for i in database_cursor.description]
+        with open('data/get_different_tpcis.csv', 'w') as file:
+            csv_out = csv.writer(file, lineterminator='\n', delimiter='\t')
+            csv_out.writerow(column_names)
+            for row in database_cursor:
+                csv_out.writerow(row)
+        file.close()
+
+        end = timer()
+        runtime = end - start
+        print(f'Query ({query})was running for {runtime:.4} seconds')
 
     return
 
