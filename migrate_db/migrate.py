@@ -36,11 +36,11 @@ def migrate_records(offset, row_cnt, workload_size, read_cursor, write_cursor, w
                                            str(snk_row.destination_addr), str(snk_row.apci), str(snk_row.tpci),
                                            str(snk_row.priority), snk_row.repeated, snk_row.hop_count,
                                            str(snk_row.apdu), snk_row.payload_length, str(snk_row.cemi),
-                                           snk_row.is_manipulated))
+                                           str(snk_row.payload_data), snk_row.is_manipulated))
 
-        stmt = f'INSERT INTO {sink_db}.knx_dump_test (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
-               f'repeated, hop_count, apdu, payload_length, cemi, is_manipulated) ' \
-               f'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);'
+        stmt = f'INSERT INTO {sink_db}.knx_dump_new (timestamp, source_addr, destination_addr, apci, tpci, priority,' \
+               f'repeated, hop_count, apdu, payload_length, cemi, payload_data, is_manipulated) ' \
+               f'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);'
         write_cursor.executemany(stmt, prepare_migration_batch)
         write_connection.commit()
         counter_migrated_tuples += limit
@@ -101,6 +101,7 @@ def translate_to_sink_row(src_row):
     sink_row.apdu = src_telegram.payload.hex()                          # from BaosKnxParser
     sink_row.payload_length = src_telegram.payload_length               # from BaosKnxParser
     sink_row.cemi = src_row.cemi                                        # unchanged
+    sink_row.payload_data = src_telegram.payload_data                   # from BaosKnxParser
     sink_row.is_manipulated = False                                     # 0 = FALSE
     sink_row.attack_type_id = 'NULL'                                    # parsed telegrams are not considered an attack
 
@@ -155,6 +156,6 @@ def close_db_connection(source_connection, sink_connection, source_cursor, sink_
 
 
 src_conn, sink_conn, src_csr, snk_csr = init_db_connections()
-migrate_records(0, 10000, 1000, src_csr, snk_csr, sink_conn)
+migrate_records(0, 8000000, 10000, src_csr, snk_csr, sink_conn)
 close_db_connection(src_conn, sink_conn, src_csr, snk_csr)
 
