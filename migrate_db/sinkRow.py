@@ -11,5 +11,6 @@ class SinkRow:
     apdu = None
     payload_length = None
     cemi = None
+    payload_data = None
     is_manipulated = None
     attack_type_id = None
